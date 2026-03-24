@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DeepFake Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #080810;
+    --surface:  #0f0f1a;
+    --card:     #13131f;
+    --border:   rgba(255,255,255,0.07);
+    --accent:   #00f5c8;
+    --danger:   #ff4060;
+    --safe:     #00e676;
+    --warn:     #ffb800;
+    --text:     #e8e8f0;
+    --muted:    #555570;
+    --mono:     'DM Mono', monospace;
+    --sans:     'DM Sans', sans-serif;
+    --display:  'Bebas Neue', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Animated grid background ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,200,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,200,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Glow orb ── */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 400px;
+    background: radial-gradient(ellipse, rgba(0,245,200,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ── */
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 60px 24px 100px;
+  }
+
+  /* ── Header ── */
+  header {
+    text-align: center;
+    margin-bottom: 56px;
+    animation: fadeDown 0.6s ease both;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+    opacity: 0.8;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(52px, 10vw, 88px);
+    letter-spacing: 2px;
+    line-height: 0.95;
+    color: #fff;
+    margin-bottom: 18px;
+  }
+
+  h1 .accent { color: var(--accent); }
+
+  .tagline {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* ── Upload card ── */
+  .upload-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px;
+    animation: fadeUp 0.6s 0.2s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.4;
+  }
+
+  /* ── Drop zone ── */
+  .drop-zone {
+    border: 2px dashed rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 56px 24px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.25s, background 0.25s;
+  }
+
+  .drop-zone:hover,
+  .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,245,200,0.03);
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 18px;
+    border: 1.5px solid rgba(0,245,200,0.3);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,245,200,0.06);
+  }
+
+  .drop-icon svg {
+    width: 24px;
+    height: 24px;
+    stroke: var(--accent);
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .drop-title {
+    font-size: 17px;
+    font-weight: 500;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+
+  .drop-formats {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* ── File chip ── */
+  .file-chip {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0,245,200,0.05);
+    border: 1px solid rgba(0,245,200,0.15);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .file-chip.show { display: flex; }
+
+  .chip-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chip-size { color: var(--muted); }
+
+  .chip-remove {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+  .chip-remove:hover { color: var(--danger); }
+
+  /* ── Video preview ── */
+  .video-preview {
+    display: none;
+    margin-top: 16px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #000;
+    max-height: 260px;
+    align-items: center;
+    justify-content: center;
+  }
+  .video-preview.show { display: flex; }
+  .video-preview video {
+    max-width: 100%;
+    max-height: 260px;
+    display: block;
+    border-radius: 10px;
+  }
+
+  /* ── Analyse button ── */
+  .analyse-btn {
+    width: 100%;
+    margin-top: 24px;
+    padding: 17px;
+    background: var(--accent);
+    color: #000;
+    font-family: var(--display);
+    font-size: 20px;
+    letter-spacing: 2px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .analyse-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+    transform: translateX(-100%);
+    transition: transform 0.5s;
+  }
+
+  .analyse-btn:not(:disabled):hover::after { transform: translateX(100%); }
+  .analyse-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .analyse-btn:not(:disabled):active { transform: scale(0.98); }
+
+  /* ── Loader ── */
+  .loader {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 36px 0 8px;
+  }
+  .loader.show { display: flex; }
+
+  .scan-bar {
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .scan-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 99px;
+    animation: scanProgress 3s ease-in-out infinite;
+  }
+
+  @keyframes scanProgress {
+    0%   { width: 0%;   margin-left: 0; }
+    50%  { width: 70%;  margin-left: 15%; }
+    100% { width: 0%;   margin-left: 100%; }
+  }
+
+  .loader-steps {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .loader-step {
+    display: none;
+    animation: blink 1.2s ease-in-out infinite;
+  }
+  .loader-step.active { display: block; }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Result box ── */
+  .result-box {
+    display: none;
+    margin-top: 28px;
+    border-radius: 16px;
+    padding: 28px 30px;
+    border: 1px solid;
+    animation: fadeUp 0.4s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+  }
+
+  .result-box.fake {
+    background: rgba(255,64,96,0.06);
+    border-color: rgba(255,64,96,0.25);
+  }
+  .result-box.fake::before {
+    background: linear-gradient(90deg, transparent, var(--danger), transparent);
+  }
+
+  .result-box.real {
+    background: rgba(0,230,118,0.05);
+    border-color: rgba(0,230,118,0.2);
+  }
+  .result-box.real::before {
+    background: linear-gradient(90deg, transparent, var(--safe), transparent);
+  }
+
+  .result-box.show { display: block; }
+
+  .result-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 16px;
+  }
+
+  .result-verdict {
+    font-family: var(--display);
+    font-size: 38px;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+  .fake .result-verdict { color: var(--danger); }
+  .real .result-verdict { color: var(--safe); }
+
+  .result-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid;
+    white-space: nowrap;
+    margin-top: 4px;
+  }
+  .fake .result-badge {
+    color: var(--danger);
+    border-color: rgba(255,64,96,0.3);
+    background: rgba(255,64,96,0.08);
+  }
+  .real .result-badge {
+    color: var(--safe);
+    border-color: rgba(0,230,118,0.3);
+    background: rgba(0,230,118,0.06);
+  }
+
+  /* Confidence meter */
+  .conf-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .conf-track {
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .conf-fill {
+    height: 100%;
+    border-radius: 99px;
+    width: 0%;
+    transition: width 1s cubic-bezier(.22,1,.36,1);
+  }
+  .fake .conf-fill { background: linear-gradient(90deg, #ff4060, #ff6080); }
+  .real .conf-fill { background: linear-gradient(90deg, #00e676, #00ffa0); }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+
+  .stat-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: #fff;
+    margin-bottom: 3px;
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ── Error box ── */
+  .error-box {
+    display: none;
+    margin-top: 20px;
+    padding: 16px 18px;
+    background: rgba(255,64,96,0.06);
+    border: 1px solid rgba(255,64,96,0.2);
+    border-radius: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--danger);
+    line-height: 1.6;
+  }
+  .error-box.show { display: block; }
+
+  /* ── Info strip ── */
+  .info-strip {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-top: 28px;
+    animation: fadeUp 0.6s 0.4s ease both;
+  }
+
+  .info-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 16px;
+    text-align: center;
+  }
+
+  .info-icon {
+    font-size: 20px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .info-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    margin-bottom: 3px;
+  }
+
+  .info-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 60px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 2;
+    animation: fadeUp 0.6s 0.5s ease both;
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <!-- Header -->
+  <header>
+    <p class="eyebrow">AI Forensics · Neural Detection</p>
+    <h1>DEEP<span class="accent">FAKE</span><br>DETECTOR</h1>
+    <p class="tagline">Xception CNN + BiLSTM · 50-frame analysis · MTCNN face detection</p>
+  </header>
+
+  <!-- Upload Card -->
+  <div class="upload-card">
+
+    <!-- Drop Zone -->
+    <div class="drop-zone" id="dropZone"
+         ondragover="handleDrag(event, true)"
+         ondragleave="handleDrag(event, false)"
+         ondrop="handleDrop(event)">
+      <input type="file" id="videoInput"
+             accept=".mp4,.avi,.mov,.mkv,.webm"
+             onchange="handleFile(event)"/>
+
+      <div class="drop-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.9L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
+        </svg>
+      </div>
+      <p class="drop-title">Drop video file here</p>
+      <p class="drop-formats">MP4 &nbsp;·&nbsp; AVI &nbsp;·&nbsp; MOV &nbsp;·&nbsp; MKV &nbsp;·&nbsp; WEBM</p>
+    </div>
+
+    <!-- File chip -->
+    <div class="file-chip" id="fileChip">
+      <span>▶</span>
+      <span class="chip-name" id="chipName"></span>
+      <span class="chip-size" id="chipSize"></span>
+      <span class="chip-remove" onclick="clearFile()">✕</span>
+    </div>
+
+    <!-- Video preview -->
+    <div class="video-preview" id="videoPreview">
+      <video id="videoPlayer" controls muted playsinline></video>
+    </div>
+
+    <!-- Analyse button -->
+    <button class="analyse-btn" id="analyseBtn" disabled onclick="analyse()">
+      ANALYSE VIDEO
+    </button>
+
+    <!-- Loader -->
+    <div class="loader" id="loader">
+      <div class="scan-bar"><div class="scan-fill"></div></div>
+      <div class="loader-steps">
+        <p class="loader-step active" id="step1">Extracting 50 frames uniformly…</p>
+        <p class="loader-step" id="step2">Detecting faces with MTCNN…</p>
+        <p class="loader-step" id="step3">Running Xception feature extraction…</p>
+        <p class="loader-step" id="step4">BiLSTM sequence analysis…</p>
+        <p class="loader-step" id="step5">Computing final prediction…</p>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div class="result-box" id="resultBox">
+      <div class="result-header">
+        <div>
+          <div class="result-verdict" id="resultVerdict"></div>
+        </div>
+        <div class="result-badge" id="resultBadge"></div>
+      </div>
+      <div class="conf-label-row">
+        <span id="confLabel">Confidence</span>
+        <span id="confPct"></span>
+      </div>
+      <div class="conf-track">
+        <div class="conf-fill" id="confFill"></div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-value" id="statFrames">50</div>
+          <div class="stat-label">Frames</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="statConf">—</div>
+          <div class="stat-label">Confidence</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="statVerdict">—</div>
+          <div class="stat-label">Verdict</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div class="error-box" id="errorBox"></div>
+
+  </div>
+
+  <!-- Info strip -->
+  <div class="info-strip">
+    <div class="info-item">
+      <span class="info-icon">🧠</span>
+      <div class="info-title">BiLSTM Model</div>
+      <div class="info-sub">Temporal sequence learning</div>
+    </div>
+    <div class="info-item">
+      <span class="info-icon">👁</span>
+      <div class="info-title">Face Detection</div>
+      <div class="info-sub">MTCNN precision crop</div>
+    </div>
+    <div class="info-item">
+      <span class="info-icon">⚡</span>
+      <div class="info-title">Xception CNN</div>
+      <div class="info-sub">2048-dim features</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    DFD Dataset · Google DeepFakeDetection · ICCV 2026<br>
+    Xception + BiLSTM · Flask API · Built with TensorFlow
+  </footer>
+
+</div>
+
+<script>
+  let selectedFile = null;
+  let stepIndex    = 0;
+  let stepTimer    = null;
+
+  // ── Drag & Drop ───────────────────────────────────────────────────────────
+  function handleDrag(e, over) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.toggle('drag-over', over);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) applyFile(file);
+  }
+
+  function handleFile(e) {
+    const file = e.target.files[0];
+    if (file) applyFile(file);
+  }
+
+  // ── Apply selected file ───────────────────────────────────────────────────
+  function applyFile(file) {
+    selectedFile = file;
+    const url    = URL.createObjectURL(file);
+
+    // Video preview
+    const player = document.getElementById('videoPlayer');
+    player.src   = url;
+    document.getElementById('videoPreview').classList.add('show');
+
+    // Chip
+    document.getElementById('chipName').textContent = file.name;
+    document.getElementById('chipSize').textContent = formatSize(file.size);
+    document.getElementById('fileChip').classList.add('show');
+
+    // Reset state
+    document.getElementById('analyseBtn').disabled = false;
+    document.getElementById('resultBox').classList.remove('show', 'fake', 'real');
+    document.getElementById('errorBox').classList.remove('show');
+  }
+
+  function clearFile() {
+    selectedFile = null;
+    document.getElementById('videoInput').value    = '';
+    document.getElementById('videoPlayer').src     = '';
+    document.getElementById('fileChip').classList.remove('show');
+    document.getElementById('videoPreview').classList.remove('show');
+    document.getElementById('analyseBtn').disabled = true;
+    document.getElementById('resultBox').classList.remove('show', 'fake', 'real');
+    document.getElementById('errorBox').classList.remove('show');
+  }
+
+  // ── Loader steps animation ────────────────────────────────────────────────
+  const STEPS = ['step1','step2','step3','step4','step5'];
+
+  function startSteps() {
+    stepIndex = 0;
+    STEPS.forEach(id => document.getElementById(id).classList.remove('active'));
+    document.getElementById(STEPS[0]).classList.add('active');
+    stepTimer = setInterval(() => {
+      document.getElementById(STEPS[stepIndex]).classList.remove('active');
+      stepIndex = (stepIndex + 1) % STEPS.length;
+      document.getElementById(STEPS[stepIndex]).classList.add('active');
+    }, 1800);
+  }
+
+  function stopSteps() {
+    if (stepTimer) { clearInterval(stepTimer); stepTimer = null; }
+    STEPS.forEach(id => document.getElementById(id).classList.remove('active'));
+  }
+
+  // ── Analyse ───────────────────────────────────────────────────────────────
+  async function analyse() {
+    if (!selectedFile) return;
+
+    // UI: loading state
+    document.getElementById('analyseBtn').disabled = true;
+    document.getElementById('loader').classList.add('show');
+    document.getElementById('resultBox').classList.remove('show', 'fake', 'real');
+    document.getElementById('errorBox').classList.remove('show');
+    startSteps();
+
+    try {
+      const form = new FormData();
+      form.append('video', selectedFile);
+
+      const res  = await fetch('/predict', { method: 'POST', body: form });
+      const data = await res.json();
+
+      if (!res.ok || data.error) throw new Error(data.error || 'Server error');
+
+      showResult(data);
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      stopSteps();
+      document.getElementById('loader').classList.remove('show');
+      document.getElementById('analyseBtn').disabled = false;
+    }
+  }
+
+  // ── Show result ───────────────────────────────────────────────────────────
+  function showResult(data) {
+    const fake = data.prediction === 'fake';
+    const pct  = Math.round(data.confidence * 100);
+    const box  = document.getElementById('resultBox');
+
+    box.className = 'result-box show ' + data.prediction;
+
+    document.getElementById('resultVerdict').textContent =
+      fake ? '⚠ DEEPFAKE DETECTED' : '✓ AUTHENTIC VIDEO';
+
+    document.getElementById('resultBadge').textContent =
+      fake ? 'MANIPULATED' : 'GENUINE';
+
+    document.getElementById('confLabel').textContent =
+      fake ? 'Fake confidence' : 'Real confidence';
+
+    document.getElementById('confPct').textContent = pct + '%';
+
+    document.getElementById('statConf').textContent  = pct + '%';
+    document.getElementById('statVerdict').textContent = fake ? 'FAKE' : 'REAL';
+
+    // Animate confidence bar
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        document.getElementById('confFill').style.width = pct + '%';
+      })
+    );
+  }
+
+  // ── Show error ────────────────────────────────────────────────────────────
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = '⚠ Error: ' + msg;
+    box.classList.add('show');
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function formatSize(bytes) {
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+</script>
+</body>
+</html>

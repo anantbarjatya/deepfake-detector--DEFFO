@@ -1,0 +1,10 @@
+tensorflow>=2.10.0
+opencv-python
+mtcnn
+scikit-learn
+matplotlib
+seaborn
+tqdm
+albumentations
+flask
+numpy

@@ -1,0 +1,32 @@
+# Large model files
+deepfake_model.h5
+features_cache.npz
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Dataset (too large)
+dataset/
+
+# Generated outputs
+training_history.png
+evaluation.png
+*.npz
+tb_logs/
+
+# Mac files
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Temp files
+*.tmp
