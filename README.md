@@ -6,7 +6,7 @@ A production-level deepfake video detection system using **Xception CNN + Bidire
 | Metric | Score |
 |--------|-------|
 | ROC-AUC | 83.93% |
-| Accuracy | 67.1% |
+
 | Fake Recall | 100% |
 
 ## Architecture
